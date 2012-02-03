@@ -1,7 +1,7 @@
 /* simple identd server for xchat under win32 */
 
 /* Compile in Linux using:
-g++ -pthread -I/usr/include -I/usr/include/glib-2.0/ -I/usr/lib/glib-2.0/include/ -o ident identd.c
+g++ -pthread -I/usr/include -I/usr/include/glib-2.0/ -I/usr/lib/glib-2.0/include/ -o identd identd.c
 
 Notes on Linux porting:
 - Threaded functions in Linux *MUST* have a "void *(*)(void *)" signature, meaning 
@@ -13,7 +13,9 @@ Notes on Linux porting:
   (no, just #include "text.h" is NOT enough) 
 
 - CloseHandle was not ported, as I fail to understand killing a thread right after calling it,
-  but the most similar function would be pthread_exit 
+  but the most similar function would be pthread_exit
+ 
+- Only tested *without* IPv6 support (ie, USE_IPV6 is NOT defined)
 */
 
 #define WANTSOCKET

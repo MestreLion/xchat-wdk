@@ -1,12 +1,19 @@
 /* simple identd server for xchat under win32 */
 
 /* Compile in Linux using:
-g++ -pthread -I/usr/include -I/usr/include/glib-2.0/ -I/usr/lib/glib-2.0/include/ identd.c
+g++ -pthread -I/usr/include -I/usr/include/glib-2.0/ -I/usr/lib/glib-2.0/include/ -o ident identd.c
 
-Notes on errors:
+Notes on Linux porting:
 - Threaded functions in Linux *MUST* have a "void *(*)(void *)" signature, meaning 
   identd and identd_ipv6 must be changed from static int to void (or void*)
 
+- For some reason, gcc is complaining if int main(){} is not explicitely declared
+
+- For an unknown reason, compiling requires PrintText to be *implemented*
+  (no, just #include "text.h" is NOT enough) 
+
+- CloseHandle was not ported, as I fail to understand killing a thread right after calling it,
+  but the most similar function would be pthread_exit 
 */
 
 #define WANTSOCKET
@@ -27,8 +34,6 @@ typedef int SOCKET;
 #include "xchat.h"
 #include "xchatc.h"
 #include "inet.h"
-#include "text.h"
-
 
 static int identd_is_running = FALSE;
 #ifdef USE_IPV6
@@ -37,17 +42,24 @@ static int identd_ipv6_is_running = FALSE;
 
 #ifdef WIN32
 static int
-#else						       /* for unix */
-void
-#endif
 identd (char *username)
 {
-	int sok, read_sok;
-#ifdef WIN32						/* for windows */
 	int len;
 #else						       /* for unix */
+/* This is ugly, but... */
+int main() {}
+void PrintText (session *sess, char *text) { return; }
+/* someone please find a way to change the above to:
+#include "text.h"
+*/
+
+void *
+identd (void *v_username)
+{
+	char * username = (char *) v_username;
 	socklen_t len;
 #endif
+	int sok, read_sok;
 	char *p;
 	char buf[256];
 	char outbuf[256];
@@ -219,7 +231,8 @@ identd_start (char *username)
 		CloseHandle (CreateThread (NULL, 0, (LPTHREAD_START_ROUTINE) identd,
 						 strdup (username), 0, &tid));
 #else						       /* for unix */
-		pthread_create (&tid, NULL, (void *(*)(void *))&identd, strdup (username) );
+		pthread_create (&tid, NULL, identd, strdup (username));
+		// pthread_exit (0); # What would be the point of creating a thread and kill it before it naturally ends?
 #endif
 	}
 }

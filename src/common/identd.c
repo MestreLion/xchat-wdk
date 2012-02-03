@@ -1,18 +1,53 @@
 /* simple identd server for xchat under win32 */
 
-#include "inet.h"
+/* Compile in Linux using:
+g++ -pthread -I/usr/include -I/usr/include/glib-2.0/ -I/usr/lib/glib-2.0/include/ identd.c
+
+Notes on errors:
+- Threaded functions in Linux *MUST* have a "void *(*)(void *)" signature, meaning 
+  identd and identd_ipv6 must be changed from static int to void (or void*)
+
+*/
+
+#define WANTSOCKET
+
+#ifndef WIN32						/* for unix */
+typedef unsigned long DWORD;
+typedef int SOCKET;
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR   -1
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <pthread.h>
+#endif
+
 #include "xchat.h"
 #include "xchatc.h"
+#include "inet.h"
+#include "text.h"
+
 
 static int identd_is_running = FALSE;
 #ifdef USE_IPV6
 static int identd_ipv6_is_running = FALSE;
 #endif
 
+#ifdef WIN32
 static int
+#else						       /* for unix */
+void
+#endif
 identd (char *username)
 {
-	int sok, read_sok, len;
+	int sok, read_sok;
+#ifdef WIN32						/* for windows */
+	int len;
+#else						       /* for unix */
+	socklen_t len;
+#endif
 	char *p;
 	char buf[256];
 	char outbuf[256];
@@ -179,7 +214,12 @@ identd_start (char *username)
 	if (identd_is_running == FALSE)
 	{
 		identd_is_running = TRUE;
+
+#ifdef WIN32						/* for windows */
 		CloseHandle (CreateThread (NULL, 0, (LPTHREAD_START_ROUTINE) identd,
 						 strdup (username), 0, &tid));
+#else						       /* for unix */
+		pthread_create (&tid, NULL, (void *(*)(void *))&identd, strdup (username) );
+#endif
 	}
 }

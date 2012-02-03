@@ -584,3 +584,9 @@ struct popup
 #endif
 
 #endif
+
+struct session *current_tab;
+struct session *current_sess;
+struct xchatprefs prefs;
+
+

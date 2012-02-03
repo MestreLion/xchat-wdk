@@ -91,9 +91,7 @@ gint arg_existing = FALSE;
 #include "dbus/dbus-plugin.h"
 #endif /* USE_DBUS */
 
-struct session *current_tab;
-struct session *current_sess = 0;
-struct xchatprefs prefs;
+current_sess = 0;
 
 #ifdef USE_OPENSSL
 SSL_CTX *ctx = NULL;

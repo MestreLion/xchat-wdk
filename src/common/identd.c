@@ -1,18 +1,67 @@
 /* simple identd server for xchat under win32 */
 
-#include "inet.h"
+/* Compile in Linux using:
+g++ -pthread -I/usr/include -I/usr/include/glib-2.0/ -I/usr/lib/glib-2.0/include/ -o identd identd.c
+
+Notes on Linux porting:
+- Threaded functions in Linux *MUST* have a "void *(*)(void *)" signature, meaning
+  identd and identd_ipv6 must be changed from static int to void (or void*)
+
+- For some reason, gcc is complaining if int main(){} is not explicitely declared
+
+- For an unknown reason, compiling requires PrintText to be *implemented*
+  (no, just #include "text.h" is NOT enough)
+
+- CloseHandle was not ported, as I fail to understand killing a thread right after calling it,
+  but the most similar function would be pthread_exit
+
+- Only tested *without* IPv6 support (ie, USE_IPV6 is NOT defined)
+*/
+
+#define WANTSOCKET
+
+#ifndef WIN32						/* for unix */
+typedef unsigned long DWORD;
+typedef int SOCKET;
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR   -1
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <pthread.h>
+#endif
+
 #include "xchat.h"
 #include "xchatc.h"
+#include "inet.h"
 
 static int identd_is_running = FALSE;
 #ifdef USE_IPV6
 static int identd_ipv6_is_running = FALSE;
 #endif
 
+#ifdef WIN32
 static int
 identd (char *username)
 {
-	int sok, read_sok, len;
+	int len;
+#else						       /* for unix */
+/* This is ugly, but... */
+int main() {}
+void PrintText (session *sess, char *text) { return; }
+/* someone please find a way to change the above to:
+#include "text.h"
+*/
+
+void *
+identd (void *v_username)
+{
+	char * username = (char *) v_username;
+	socklen_t len;
+#endif
+	int sok, read_sok;
 	char *p;
 	char buf[256];
 	char outbuf[256];
@@ -179,7 +228,13 @@ identd_start (char *username)
 	if (identd_is_running == FALSE)
 	{
 		identd_is_running = TRUE;
+
+#ifdef WIN32						/* for windows */
 		CloseHandle (CreateThread (NULL, 0, (LPTHREAD_START_ROUTINE) identd,
 						 strdup (username), 0, &tid));
+#else						       /* for unix */
+		pthread_create (&tid, NULL, identd, strdup (username));
+		// pthread_exit (0); # What would be the point of creating a thread and kill it before it naturally ends?
+#endif
 	}
 }
